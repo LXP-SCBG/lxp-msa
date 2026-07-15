@@ -7,7 +7,7 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class RestClientConfig {
 
-    private static final String MEMBER_API_URI = "http://localhost:8080";
+    private static final String MEMBER_API_URI = "http://localhost:9080";
 
     @Bean
     public RestClient memberRestClient() {
