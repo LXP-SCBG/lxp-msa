@@ -11,7 +11,7 @@ export class SignupApiError extends Error {
   }
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASIC_URL ?? "http://localhost:8080";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 export async function loginApi(body: LoginRequest): Promise<MemberResponse> {
   const res = await fetch(`${BASE_URL}/auth/login`, {
