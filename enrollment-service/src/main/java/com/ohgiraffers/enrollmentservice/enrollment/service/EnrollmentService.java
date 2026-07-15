@@ -4,7 +4,7 @@ import com.ohgiraffers.enrollmentservice.common.exception.BusinessException;
 import com.ohgiraffers.enrollmentservice.common.exception.ErrorCode;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Enrollment;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Lecture;
-import com.ohgiraffers.enrollmentservice.enrollment.dto.EnrollmentResponse;
+import com.ohgiraffers.enrollmentservice.enrollment.domain.Member;
 import com.ohgiraffers.enrollmentservice.enrollment.repository.EnrollmentRepository;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +27,7 @@ public class EnrollmentService {
     public EnrollmentService(
             EnrollmentRepository enrollmentRepository,
             RestClient lectureRestClient,
-            RestClient memberRestClient,
+            RestClient memberRestClient
     ) {
         this.enrollmentRepository = enrollmentRepository;
         this.lectureRestClient = lectureRestClient;
@@ -111,6 +111,7 @@ public class EnrollmentService {
 
         if (member == null) {
             throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
+        }
     }
 
     private boolean isDuplicateEnrollmentException(DataIntegrityViolationException e) {
