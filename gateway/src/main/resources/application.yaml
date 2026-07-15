@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: gateway
+
+  # consul 블록 삭제: 디스커버리 없이 고정 주소로 라우팅한다. Consul 도입 시 다시 추가.
+
+  cloud:
+    # Spring Cloud Gateway 5.x(Boot 4 트레인)부터 라우트 설정 prefix가 서버 종류별로 갈라졌다.
+    # WebFlux 서버는 spring.cloud.gateway.server.webflux.routes 아래에 적는다(구 flat 키는 바인딩 안 됨).
+    gateway:
+      server:
+        webflux:
+          routes:              # 들어온 요청의 경로를 보고 어느 서비스로 보낼지 정한다.
+            - id: member-service
+              uri: http://localhost:8080   # lb://member-svc 대신 고정 주소. Consul 도입 시 lb://로 교체.
+              predicates:
+                - Path=/auth/**,/members/**   # 콤마로 이으면 둘 중 하나만 맞아도 매칭
+            - id: lecture-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/lectures/**
+            - id: enrollment-service
+              uri: http://localhost:8082    # enrollment는 server.port=8082 지정 필요
+              predicates:
+                - Path=/enrollments/**
+            - id: goal-service
+              uri: http://localhost:8083    # goal은 server.port=8083 지정 필요
+              predicates:
+                - Path=/goals/**
+            # /api/v1/** (서비스 간 내부 API)는 일부러 라우트에 없다.
+            # 게이트웨이에 없는 경로 = 외부에서 접근 불가. 내부 호출은 서비스끼리 직접 포트로 한다.
+
+server:
+  port: 7070                   # 외부의 단일 진입점. front는 이 포트만 안다.
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway   # gateway=/actuator/gateway/routes로 라우트 확인용.
+  endpoint:
+    gateway:
+      # gateway 엔드포인트는 기본 비활성. 노출 목록에 넣는 것만으론 404가 난다(SCG 5.x).
+      access: read-only
