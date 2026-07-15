@@ -5,17 +5,12 @@ import type {
   ReviewListResponse,
   ReviewResponse,
 } from "@/types/review";
-
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  (process.env.NODE_ENV === "development" ? "http://localhost:8080" : "")
-).replace(/\/$/, "");
-
+import { BASE_URL } from "@/lib/api/client";
 
 const REQUEST_TIMEOUT_MS = 8000;
 
 function buildApiUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
+  return `${BASE_URL}${path}`;
 }
 
 async function fetchWithTimeout(

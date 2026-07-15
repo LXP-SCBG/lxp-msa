@@ -1,9 +1,5 @@
-import { apiRequest, ApiError } from "@/lib/api/client";
+import { apiRequest, ApiError, BASE_URL } from "@/lib/api/client";
 import type { EnrollRequest, EnrollmentResponse } from "@/types/enrollment";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ??
-  "http://localhost:8080";
 
 async function getErrorMessage(response: Response, fallbackMessage: string) {
   try {
@@ -29,7 +25,7 @@ export async function enrollLecture(lectureId: number): Promise<void> {
   let response: Response;
 
   try {
-    response = await fetch(`${API_BASE_URL}/enrollments`, {
+    response = await fetch(`${BASE_URL}/enrollments`, {
       method: "POST",
       credentials: "include",
       headers: {

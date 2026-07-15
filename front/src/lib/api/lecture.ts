@@ -2,9 +2,7 @@ import type {
   LectureDetailResponse,
   LectureListResponse,
 } from "@/types/lecture";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+import { BASE_URL } from "@/lib/api/client"; 
 
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -43,7 +41,7 @@ export async function getLectures(): Promise<LectureListResponse[]> {
   let response: Response;
 
   try {
-    response = await fetchWithTimeout(`${API_BASE_URL}/lectures`, {
+    response = await fetchWithTimeout(`${BASE_URL}/lectures`, {
       method: "GET",
       cache: "no-store",
     });
@@ -69,7 +67,7 @@ export async function getLecture(
   let response: Response;
 
   try {
-    response = await fetchWithTimeout(`${API_BASE_URL}/lectures/${lectureId}`, {
+    response = await fetchWithTimeout(`${BASE_URL}/lectures/${lectureId}`, {
       method: "GET",
       cache: "no-store",
     });

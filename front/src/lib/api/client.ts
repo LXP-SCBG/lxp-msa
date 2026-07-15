@@ -2,8 +2,10 @@
 // - 세션 쿠키(JSESSIONID)를 주고받기 위해 credentials: "include" 고정
 // - 에러 응답({ message })을 ApiError 로 변환해 호출부에서 status/메시지로 분기 가능
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+export const BASE_URL =
+  typeof window === "undefined"
+    ? process.env.INTERNAL_API_BASE_URL ?? "http://gateway:7070"
+    : process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:7070";
 
 export class ApiError extends Error {
   status: number;

@@ -1,4 +1,5 @@
 import { LoginRequest, SignupRequest, MemberResponse, ApiErrorResponse } from "@/types/auth";
+import { BASE_URL } from "@/lib/api/client";
 
 export class SignupApiError extends Error {
   status: number;
@@ -10,8 +11,6 @@ export class SignupApiError extends Error {
     this.fieldErrors = fieldErrors;
   }
 }
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 export async function loginApi(body: LoginRequest): Promise<MemberResponse> {
   const res = await fetch(`${BASE_URL}/auth/login`, {

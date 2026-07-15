@@ -1,11 +1,8 @@
-import { apiRequest, ApiError } from "@/lib/api/client";
+import { apiRequest, ApiError, BASE_URL } from "@/lib/api/client";
 import type {
   QuestionListResponse,
   QuestionDetailResponse,
 } from "@/types/question";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 // 조회 2개는 body가 있으니 apiRequest 그대로
 export function getQuestions(lectureId: number) {
