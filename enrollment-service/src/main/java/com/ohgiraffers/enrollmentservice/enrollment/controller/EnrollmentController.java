@@ -1,6 +1,5 @@
 package com.ohgiraffers.enrollmentservice.enrollment.controller;
 
-import com.ohgiraffers.enrollmentservice.common.auth.LoginMember;
 import com.ohgiraffers.enrollmentservice.enrollment.dto.EnrollRequest;
 import com.ohgiraffers.enrollmentservice.enrollment.service.EnrollmentService;
 import jakarta.validation.Valid;
@@ -10,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,7 +30,7 @@ public class EnrollmentController {
      */
     @PostMapping
     public ResponseEntity<Void> enroll(
-        @LoginMember Long memberId,
+        @RequestHeader("X-Member-Id") Long memberId,
         @Valid @RequestBody EnrollRequest request
     ) {
         log.info("수강신청 요청 - memberId={}, lectureId={}", memberId, request.lectureId());
