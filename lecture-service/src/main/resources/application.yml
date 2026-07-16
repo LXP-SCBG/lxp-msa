@@ -16,3 +16,7 @@ spring:
 
 server:
   port: 9081
+
+logging:
+  level:
+    com.ohgiraffers.lectureservice: DEBUG
