@@ -2,6 +2,8 @@ package com.ohgiraffers.lectureservice.common.exception;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,10 +16,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     // 비즈니스 예외 → ErrorCode 의 상태·메시지로 응답
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e){
         ErrorCode errorCode = e.getErrorCode();
+        log.warn("비즈니스 예외 발생 - code={}, status={}, message={}",
+                errorCode.name(), errorCode.getHttpStatus(), errorCode.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus())
                 .body(new ErrorResponse(errorCode.getMessage()));
     }
