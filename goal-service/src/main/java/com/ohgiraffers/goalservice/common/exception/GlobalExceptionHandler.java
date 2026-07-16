@@ -2,6 +2,8 @@ package com.ohgiraffers.goalservice.common.exception;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,10 +16,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     // 비즈니스 예외 → ErrorCode 의 상태·메시지로 응답
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e){
         ErrorCode errorCode = e.getErrorCode();
+        log.warn("비즈니스 예외 발생 - code: {}, message: {}", errorCode.name(), errorCode.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus())
                 .body(new ErrorResponse(errorCode.getMessage()));
     }
@@ -33,6 +38,7 @@ public class GlobalExceptionHandler {
             // 한 필드에 여러 제약이 걸리면 첫 메시지만 사용
             fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage());
         }
+        log.warn("입력값 검증 실패 - fieldErrors: {}", fieldErrors);
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse("입력값을 확인해 주세요.222", fieldErrors));
     }
@@ -40,6 +46,7 @@ public class GlobalExceptionHandler {
     /** 도메인 불변식 위반 등(예: Member.create 의 방어 로직) → 400 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("잘못된 요청 값 - message: {}", e.getMessage());
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(e.getMessage()));
     }
