@@ -19,6 +19,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,8 @@ import org.springframework.web.client.RestClient;
 @Service
 @Transactional(readOnly = true)
 public class GoalService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoalService.class);
 
     private static final int MIN_DETAIL_GOALS = 1;
     private static final int MAX_DETAIL_GOALS = 20;
@@ -50,6 +55,8 @@ public class GoalService {
 
     @Transactional
     public GoalCreateResponse createGoal(Long memberId, GoalCreateRequest request) {
+        log.info("학습목표 생성 요청 - memberId: {}, 세부목표 수: {}", memberId,
+                request.detailGoals() == null ? 0 : request.detailGoals().size());
         validateMember(memberId);
         validateDetailGoalCount(request.detailGoals());
 
@@ -65,10 +72,12 @@ public class GoalService {
 
         detailGoalRepository.saveAll(detailGoals);  // 묶어서 처리
 
+        log.info("학습목표 생성 완료 - goalId: {}", learningGoal.getLearningGoalId());
         return GoalCreateResponse.from(learningGoal, detailGoals);
     }
 
     public List<GoalResponse> findTodayGoals(Long memberId) {
+        log.info("오늘의 학습목표 조회 요청 - memberId: {}", memberId);
         validateMember(memberId);
 
         LocalDateTime threshold = LocalDateTime.now().minusHours(EXPIRE_HOURS);
@@ -93,6 +102,7 @@ public class GoalService {
 
     @Transactional
     public GoalResponse updateGoal(Long memberId, Long goalId, GoalUpdateRequest request) {
+        log.info("학습목표 수정 요청 - memberId: {}, goalId: {}", memberId, goalId);
         validateMember(memberId);
         validateDetailGoalCount(request.detailGoals());
 
@@ -106,6 +116,8 @@ public class GoalService {
     @Transactional
     public GoalResponse updateDetailGoalCompletion(
             Long memberId, Long goalId, Long detailGoalId, boolean completed) {
+        log.info("세부목표 완료 상태 변경 요청 - memberId: {}, goalId: {}, detailGoalId: {}, completed: {}",
+                memberId, goalId, detailGoalId, completed);
         validateMember(memberId);
         LearningGoal goal = findOwnedGoal(goalId, memberId);
 
@@ -122,12 +134,14 @@ public class GoalService {
 
     @Transactional
     public void deleteGoal(Long memberId, Long goalId) {
+        log.info("학습목표 삭제 요청 - memberId: {}, goalId: {}", memberId, goalId);
         validateMember(memberId);
         LearningGoal goal = findOwnedGoal(goalId, memberId);
 
         List<DetailGoal> details = detailGoalRepository.findByLearningGoalIdOrderBySortOrderAsc(goalId);
         detailGoalRepository.deleteAll(details);  // @SQLDelete → 세부목표도 soft delete
         learningGoalRepository.delete(goal);       // @SQLDelete → 학습목표 soft delete
+        log.info("학습목표 삭제 완료 - goalId: {}", goalId);
     }
 
     /** 세부목표를 요청된 최종 상태(추가/수정/삭제)로 동기화하고, 노출 순서대로 정렬된 결과를 반환한다. */
