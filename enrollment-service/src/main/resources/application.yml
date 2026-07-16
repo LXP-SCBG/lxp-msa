@@ -16,3 +16,16 @@ spring:
 
 server:
   port: 9082
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.ohgiraffers.enrollmentservice: DEBUG
