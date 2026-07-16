@@ -1,0 +1,135 @@
+# LXP MSA 전체 스택. 각 서비스의 Dockerfile을 빌드해서 하나의 네트워크로 묶는다.
+# 포트는 각 서비스 application.yml의 server.port 값을 그대로 노출한다.
+# 실행:  docker compose up --build
+
+services:
+  # ---------------------------------------------------------------
+  # DB: 서비스들의 datasource가 바라보는 MySQL.
+  # db/schema.sql -> data.sql 순서로 최초 1회 자동 실행된다(볼륨이 비어 있을 때만).
+  # ---------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: LXP
+      MYSQL_USER: sohee
+      MYSQL_PASSWORD: sohee
+    ports:
+      # 호스트 3308 -> 컨테이너 3306. 컨테이너끼리는 mysql:3306으로 통신한다.
+      - "3308:3306"
+    networks:
+      - lxp-net
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # utf8mb4 강제. 한글 시드 데이터가 깨지지 않게 서버·클라이언트 charset 고정.
+      - ./db/my.cnf:/etc/mysql/conf.d/charset.cnf:ro
+      # 파일명 알파벳 순으로 실행되므로 01/02 접두어로 순서를 고정한다.
+      # - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      # - ./db/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-psohee", "-usohee"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------
+  # 백엔드 서비스들. datasource URL은 application.yml에 localhost로 박혀 있어
+  # SPRING_DATASOURCE_URL 환경변수로 mysql 컨테이너 주소를 덮어쓴다.
+  # ---------------------------------------------------------------
+  member-service:
+    build: ./member-service
+    ports:
+      - "9080:9080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
+    networks:
+      - lxp-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  lecture-service:
+    build: ./lecture-service
+    ports:
+      - "9081:9081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
+      # 내부 API 호출 대상. localhost가 아니라 컨테이너 이름으로.
+      MEMBER_API_URI: http://member-service:9080
+    networks:
+      - lxp-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  enrollment-service:
+    build: ./enrollment-service
+    ports:
+      - "9082:9082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
+      MEMBER_API_URI: http://member-service:9080
+      LECTURE_API_URI: http://lecture-service:9081
+    networks:
+      - lxp-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  goal-service:
+    build: ./goal-service
+    ports:
+      - "9083:9083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
+      MEMBER_API_URI: http://member-service:9080
+    networks:
+      - lxp-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------
+  # 게이트웨이: 외부 단일 진입점(7070). 라우팅 대상 주소를 컨테이너 이름으로 주입한다.
+  # (application.yaml의 *_URL 기본값은 localhost라 compose에선 서비스명으로 덮어쓴다)
+  # ---------------------------------------------------------------
+  gateway:
+    build: ./gateway
+    ports:
+      - "7070:7070"
+    environment:
+      MEMBER_URL: http://member-service:9080
+      LECTURE_URL: http://lecture-service:9081
+      ENROLLMENT_URL: http://enrollment-service:9082
+      GOAL_URL: http://goal-service:9083
+    networks:
+      - lxp-net
+    depends_on:
+      - member-service
+      - lecture-service
+      - enrollment-service
+      - goal-service
+
+  # ---------------------------------------------------------------
+  # 프론트(Next.js standalone). API_BASE_URL은 브라우저에서 접근하는 주소라
+  # 빌드 시점에 localhost:7070(게이트웨이 노출 포트)로 굽는다.
+  # ---------------------------------------------------------------
+  front:
+    build:
+      context: ./front
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:7070
+    ports:
+      - "3000:3000"
+    networks:
+      - lxp-net
+    depends_on:
+      - gateway
+
+# 모든 컨테이너가 이 네트워크에 붙어 서비스명으로 서로를 찾는다.
+networks:
+  lxp-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
