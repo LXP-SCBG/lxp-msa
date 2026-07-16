@@ -19,6 +19,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -174,12 +176,12 @@ public class GoalService {
 
     private void validateMember(Long memberId) {
 
-        Member member = memberRestClient.get()
+        ResponseEntity<String> response = memberRestClient.get()
                 .uri("/api/v1/members/{id}/active", memberId)
                 .retrieve()
-                .body(Member.class);
+                .toEntity(String.class);
 
-        if (member == null) {
+        if (response.getStatusCode() != HttpStatus.OK) {
             throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND);
         }
     }
