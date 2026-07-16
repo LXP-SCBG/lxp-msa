@@ -1,0 +1,6 @@
+# 도커 실행 전용 설정. -e SPRING_PROFILES_ACTIVE=docker 로 활성화하면
+# 기본 application.yaml 위에 이 값들이 덮어써진다.
+MEMBER_URL: http://host.docker.internal:9080
+LECTURE_URL: http://host.docker.internal:9081
+ENROLLMENT_URL: http://host.docker.internal:9082
+GOAL_URL: http://host.docker.internal:9083

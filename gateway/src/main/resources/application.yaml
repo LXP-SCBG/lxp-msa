@@ -11,30 +11,32 @@ spring:
       server:
         webflux:
           routes:              # 들어온 요청의 경로를 보고 어느 서비스로 보낼지 정한다.
+            # 주소는 환경변수로 덮어쓸 수 있다 (기본값: 로컬 실행용 localhost).
+            # 도커에선 -e MEMBER_URL=http://host.docker.internal:9080 식으로 주입한다.
             - id: member-service
-              uri: http://localhost:9080   # lb://member-svc 대신 고정 주소. Consul 도입 시 lb://로 교체.
+              uri: ${MEMBER_URL:http://localhost:9080}   # Consul 도입 시 lb://로 교체
               predicates:
                 - Path=/auth/**,/members/**   # 콤마로 이으면 둘 중 하나만 맞아도 매칭
             - id: lecture-service
-              uri: http://localhost:9081
+              uri: ${LECTURE_URL:http://localhost:9081}
               predicates:
                 - Path=/lectures/**
             - id: enrollment-service
-              uri: http://localhost:9082    # enrollment는 server.port=9082
+              uri: ${ENROLLMENT_URL:http://localhost:9082}
               predicates:
                 - Path=/enrollments/**
             - id: goal-service
-              uri: http://localhost:9083    # goal은 server.port=9083
+              uri: ${GOAL_URL:http://localhost:9083}
               predicates:
                 - Path=/goals/**
             # /api/v1/** (서비스 간 내부 API)는 일부러 라우트에 없다.
             # 게이트웨이에 없는 경로 = 외부에서 접근 불가. 내부 호출은 서비스끼리 직접 포트로 한다.
 
 # 게이트웨이가 직접 호출하는 서비스 주소 (로그인/회원가입 오케스트레이션)
-# TODO: Consul 도입 시 lb://member-service 로 교체
+# 라우트의 member-service와 같은 값을 쓴다. TODO: Consul 도입 시 lb://member-service 로 교체
 services:
   member:
-    url: http://localhost:9080
+    url: ${MEMBER_URL:http://localhost:9080}
 
 server:
   port: 7070                   # 외부의 단일 진입점. front는 이 포트만 안다.
