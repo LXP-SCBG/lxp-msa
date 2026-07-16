@@ -1,0 +1,98 @@
+### ============================================================
+### member-service 테스트 (직접 호출: 9080 / 게이트웨이 경유: 7070)
+###
+### 직접 호출 시 인증이 필요한 API는 X-Member-Id 헤더를 손으로 넣는다.
+### (게이트웨이 없이 서비스 단독 테스트용 — 외부에선 게이트웨이가 이 헤더를 제거하므로 위조 불가)
+### ============================================================
+
+### 1. 로그인 검증 (직접) — 200 + 회원정보. 콘솔에 [login] 인증 성공 로그 확인
+POST http://localhost:9080/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "test",
+  "password": "password1234"
+}
+
+### 2. 로그인 실패 (직접) — 401 + 콘솔에 [login] 비밀번호 불일치 warn 로그 확인
+POST http://localhost:9080/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "test",
+  "password": "wrong-password"
+}
+
+### 3. 회원가입 (직접) — 201 + 콘솔에 [signup] 가입 완료 로그 확인
+POST http://localhost:9080/members
+Content-Type: application/json
+
+{
+  "loginId": "semin_test",
+  "password": "password1234!",
+  "nickname": "세민테스트"
+}
+
+### 4. 회원가입 중복 (3번 재실행과 동일) — 409성 에러 + [signup] 중복 warn 로그
+POST http://localhost:9080/members
+Content-Type: application/json
+
+{
+  "loginId": "semin_test",
+  "password": "password1234!",
+  "nickname": "세민테스트"
+}
+
+### 5. /auth/me (직접 + 헤더 수동 주입) — 200. 리졸버가 헤더를 읽는지 확인
+GET http://localhost:9080/auth/me
+X-Member-Id: 5
+
+### 6. /auth/me 헤더 없이 (직접) — 401 (MEMBER_LOGIN_REQUIRED)
+GET http://localhost:9080/auth/me
+
+### ============================================================
+### 내부 API (/api/v1/**) — 다른 서비스가 RestClient로 부르는 것들
+### 콘솔에 [internal] debug 로그가 찍히는지 같이 확인
+### ============================================================
+
+### 7. 강사 목록 조회 — 200 + INSTRUCTOR 3명 (김강사/이강사/박강사)
+GET http://localhost:9080/api/v1/members
+
+### 8. 회원 단건 조회 (상태 무관) — 200
+GET http://localhost:9080/api/v1/members/5
+
+### 9. 활성 회원 조회 — 200
+GET http://localhost:9080/api/v1/members/5/active
+
+### 10. 활성 회원 조회 (탈퇴 회원 id=4) — 에러 응답 + [BusinessException] warn 로그
+GET http://localhost:9080/api/v1/members/4/active
+
+### 11. 없는 회원 조회 — 에러 응답 + [BusinessException] warn 로그
+GET http://localhost:9080/api/v1/members/9999
+
+### ============================================================
+### 게이트웨이 경유 (7070) — 실제 운영 경로. 서비스 5개 + gateway 기동 후
+### ============================================================
+
+### 12. 게이트웨이 로그인 — 200 + Set-Cookie: SESSION
+POST http://localhost:7070/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "test",
+  "password": "password1234"
+}
+
+### 13. 게이트웨이 /auth/me — 12번 쿠키로 자동 인증 (헤더는 게이트웨이가 넣음)
+GET http://localhost:7070/auth/me
+
+### 14. 게이트웨이로 헤더 위조 시도 — 401. MemberIdRelayFilter가 헤더를 제거하는지 검증
+### (로그아웃 상태에서 실행해야 정확함: 15번 먼저 실행 후 테스트)
+GET http://localhost:7070/auth/me
+X-Member-Id: 1
+
+### 15. 게이트웨이 로그아웃 — 200
+POST http://localhost:7070/auth/logout
+
+### 16. 내부 API 외부 차단 — 404 (게이트웨이 라우트에 없음)
+GET http://localhost:7070/api/v1/members/5
