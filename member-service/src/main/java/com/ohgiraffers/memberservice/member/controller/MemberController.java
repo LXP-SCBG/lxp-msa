@@ -1,29 +1,23 @@
 package com.ohgiraffers.memberservice.member.controller;
 
 import com.ohgiraffers.memberservice.common.auth.LoginMember;
-import com.ohgiraffers.memberservice.common.exception.BusinessException;
-import com.ohgiraffers.memberservice.common.exception.ErrorCode;
 import com.ohgiraffers.memberservice.member.domain.Member;
-import com.ohgiraffers.memberservice.member.domain.MemberRole;
-import com.ohgiraffers.memberservice.member.domain.MemberStatus;
 import com.ohgiraffers.memberservice.member.dto.MemberResponse;
 import com.ohgiraffers.memberservice.member.dto.SignupRequest;
-import com.ohgiraffers.memberservice.member.repository.MemberRepository;
 import com.ohgiraffers.memberservice.member.service.MemberService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 회원 API. 세션 관리는 게이트웨이 책임.
+ * 회원 API (외부 공개용). 세션 관리는 게이트웨이 책임.
+ *
+ * <p>서비스 간 내부 조회 API는 {@link InternalMemberController}(/api/v1/members)에 있다.
  *
  * <ul>
  *   <li>POST   /members     회원가입 (게이트웨이가 세션 생성으로 자동 로그인 처리)</li>
@@ -35,11 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberService memberService;
-    private final MemberRepository memberRepository;
 
-    public MemberController(MemberService memberService, MemberRepository memberRepository) {
+    public MemberController(MemberService memberService) {
         this.memberService = memberService;
-        this.memberRepository = memberRepository;
     }
 
     /**
@@ -58,28 +50,5 @@ public class MemberController {
     public ResponseEntity<Void> withdraw(@LoginMember Long memberId) {
         memberService.withdraw(memberId);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/api/v1/members")
-    public ResponseEntity<List<MemberResponse>> getInstructors() {
-        List<MemberResponse> memberResponses = memberRepository.findAllByRole(MemberRole.INSTRUCTOR).stream().
-                map(MemberResponse::from).toList();
-
-        return ResponseEntity.ok(memberResponses);
-    }
-
-    @GetMapping("/api/v1/members/{id}")
-    public ResponseEntity<MemberResponse> getInstructor(@PathVariable Long id) {
-        Member member = memberRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-
-        return ResponseEntity.ok(MemberResponse.from(member));
-    }
-
-    @GetMapping("/api/v1/members/{id}/active")
-    public ResponseEntity<MemberResponse> getActiveMember(@PathVariable Long id) {
-        Member member = memberRepository.findByMemberIdAndStatus(id, MemberStatus.ACTIVE)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-        return ResponseEntity.ok(MemberResponse.from(member));
     }
 }
