@@ -6,10 +6,8 @@ import com.ohgiraffers.enrollmentservice.enrollment.domain.Enrollment;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Lecture;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Member;
 import com.ohgiraffers.enrollmentservice.enrollment.repository.EnrollmentRepository;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import org.springframework.core.ParameterizedTypeReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +17,8 @@ import org.springframework.web.client.RestClient;
 @Service
 @Transactional(readOnly = true)
 public class EnrollmentService {
+
+    private static final Logger log = LoggerFactory.getLogger(EnrollmentService.class);
 
     private final EnrollmentRepository enrollmentRepository;
     private final RestClient lectureRestClient;
@@ -47,25 +47,34 @@ public class EnrollmentService {
      */
     @Transactional
     public Enrollment enroll(Long memberId, Long lectureId) {
+        log.info("수강신청 처리 시작 - memberId={}, lectureId={}", memberId, lectureId);
+
         validateActiveMember(memberId);
 
         Lecture lecture = lectureRestClient.get()
                 .uri("api/v1/lectures/{id}", lectureId)
                 .retrieve()
                 .body(Lecture.class);
+        log.debug("강의 조회 완료 - lectureId={}", lectureId);
 
 
         if (enrollmentRepository.existsByMemberIdAndLectureId(memberId, lectureId)) {
+            log.warn("중복 수강신청 차단 - memberId={}, lectureId={}", memberId, lectureId);
             throw new BusinessException(ErrorCode.ENROLLMENT_ALREADY_EXISTS);
         }
 
         try {
-            return enrollmentRepository.save(Enrollment.create(memberId, lectureId));
+            Enrollment saved = enrollmentRepository.save(Enrollment.create(memberId, lectureId));
+            log.info("수강신청 저장 완료 - enrollmentId={}, memberId={}, lectureId={}",
+                    saved.getId(), memberId, lectureId);
+            return saved;
         } catch (DataIntegrityViolationException e) {
             if (isDuplicateEnrollmentException(e)) {
+                log.warn("동시성 중복 수강신청 감지 - memberId={}, lectureId={}", memberId, lectureId);
                 throw new BusinessException(ErrorCode.ENROLLMENT_ALREADY_EXISTS);
             }
 
+            log.error("수강신청 저장 실패 - memberId={}, lectureId={}", memberId, lectureId, e);
             throw e;
         }
     }
