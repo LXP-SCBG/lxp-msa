@@ -126,6 +126,70 @@ services:
     depends_on:
       - gateway
 
+  # ===============================================================
+  # 관측(Observability) 스택
+  #   - Prometheus : 각 서비스 /actuator/prometheus 를 긁어 메트릭 저장 (pull)
+  #   - Loki       : 로그 저장소
+  #   - Alloy      : 컨테이너 stdout 로그를 수집해 Loki로 전송 (push)
+  #   - Grafana    : Prometheus·Loki를 조회해 시각화하는 대시보드 UI
+  # 설정 파일은 ./observability 아래에 둔다.
+  # ===============================================================
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    ports:
+      - "9090:9090"
+    volumes:
+      # 스크랩 대상(각 서비스)을 정의한 설정.
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - lxp-net
+    depends_on:
+      - gateway
+
+  loki:
+    image: grafana/loki:3.3.2
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/loki-config.yaml
+    networks:
+      - lxp-net
+
+  alloy:
+    image: grafana/alloy:v1.5.1
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "12345:12345"          # Alloy 자체 UI(파이프라인 상태 확인용)
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # 컨테이너 로그를 읽기 위해 도커 소켓과 로그 디렉토리를 읽기 전용으로 마운트.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - lxp-net
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    # front가 3000을 쓰므로 호스트 3001 -> 컨테이너 3000으로 노출한다.
+    ports:
+      - "3001:3000"
+    environment:
+      # 로컬 개발용 기본 계정. 운영 전환 시 반드시 변경한다.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    networks:
+      - lxp-net
+    depends_on:
+      - prometheus
+      - loki
+
 # 모든 컨테이너가 이 네트워크에 붙어 서비스명으로 서로를 찾는다.
 networks:
   lxp-net:

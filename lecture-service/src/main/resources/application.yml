@@ -17,6 +17,15 @@ spring:
 server:
   port: 9081
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   level:
     com.ohgiraffers.lectureservice: DEBUG

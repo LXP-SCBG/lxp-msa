@@ -45,8 +45,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,gateway   # gateway=/actuator/gateway/routes로 라우트 확인용.
+        # health,gateway에 더해 prometheus/metrics 노출(Prometheus 스크랩 대상).
+        include: health, gateway, prometheus, metrics
   endpoint:
     gateway:
       # gateway 엔드포인트는 기본 비활성. 노출 목록에 넣는 것만으론 404가 난다(SCG 5.x).
       access: read-only
+    health:
+      show-details: always

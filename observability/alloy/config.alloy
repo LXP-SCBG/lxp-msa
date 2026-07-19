@@ -1,0 +1,38 @@
+// Grafana Alloy: 실행 중인 컨테이너의 로그(stdout/stderr)를 모아 Loki로 보낸다.
+//  Promtail의 후신이다(Promtail은 2025-02 EOL → Alloy가 모던 표준).
+//  흐름: (1) Docker에서 컨테이너 발견 → (2) 라벨 정리 → (3) 로그 수집 → (4) Loki로 push.
+//  Alloy 설정은 실행 순서가 아니라 컴포넌트 간 참조로 엮인 그래프(DAG)다. 정의 순서는 상관없다.
+
+// (1) Docker 데몬에서 실행 중인 컨테이너 목록을 발견한다.
+//  컨테이너 밖에서 Docker를 보려면 소켓(/var/run/docker.sock)을 마운트해야 한다(compose에서 연결).
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// (2) 발견한 컨테이너의 메타데이터에서 쓸 만한 라벨만 골라 정리한다.
+//  컨테이너 이름(__meta_docker_container_name, 예: "/user-svc")을 service 라벨로 승격한다.
+//  Loki는 라벨로 인덱싱하므로, 값 종류가 적은(저카디널리티) 라벨만 둔다(서비스 이름은 안전).
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"           // 앞의 슬래시를 떼고 이름만 캡처.
+    target_label  = "service"
+  }
+}
+
+// (3) 정리한 대상들의 로그를 수집한다.
+loki.source.docker "default" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.containers.output   // (2)에서 라벨 붙인 대상.
+  labels        = { job = "docker" }                    // 모든 스트림에 공통으로 붙는 라벨.
+  forward_to    = [loki.write.default.receiver]         // 수집한 로그를 (4)로 흘려보낸다.
+}
+
+// (4) 모은 로그를 Loki의 push API로 보낸다.
+//  compose 네트워크 안이라 'loki'가 곧 호스트명이다.
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

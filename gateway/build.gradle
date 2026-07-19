@@ -38,6 +38,8 @@ dependencies {
 //    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
     // actuator: /actuator/health 헬스 엔드포인트(Consul 헬스체크 대상).
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // micrometer-prometheus: /actuator/prometheus 로 메트릭 노출(Prometheus 스크랩 대상).
+    implementation 'io.micrometer:micrometer-registry-prometheus'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.projectreactor:reactor-test'     // WebFlux(리액터) 테스트 보조

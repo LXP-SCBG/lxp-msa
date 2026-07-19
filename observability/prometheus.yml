@@ -1,0 +1,33 @@
+# Prometheus 스크랩 설정.
+# 각 서비스의 /actuator/prometheus 를 주기적으로 긁어(pull) 메트릭을 저장한다.
+# 대상 주소는 compose 네트워크(lxp-net) 안의 컨테이너 이름:포트를 쓴다.
+
+global:
+  scrape_interval: 15s          # 15초마다 수집
+  evaluation_interval: 15s
+
+scrape_configs:
+  # 모든 백엔드 서비스는 actuator 경로가 동일하므로 한 job으로 묶는다.
+  - job_name: 'lxp-services'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['gateway:7070']
+        labels:
+          application: gateway
+      - targets: ['member-service:9080']
+        labels:
+          application: member-service
+      - targets: ['lecture-service:9081']
+        labels:
+          application: lecture-service
+      - targets: ['enrollment-service:9082']
+        labels:
+          application: enrollment-service
+      - targets: ['goal-service:9083']
+        labels:
+          application: goal-service
+
+  # Prometheus 자기 자신도 수집 대상에 넣어 상태를 본다.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
