@@ -1,0 +1,149 @@
+###############################################################################
+# enrollment-service 로드밸런싱 / Consul 디스커버리 수동 검증용 요청 모음
+#
+# IntelliJ HTTP Client (또는 VS Code REST Client)에서 각 요청 위의
+# ▶(Run) 버튼으로 하나씩 실행하면 됩니다.
+#
+# 구성:
+#   [1] Consul   - 3개 인스턴스가 등록/헬시한지 확인 (:8500)
+#   [2] Gateway  - lb://enrollment-service 라우팅 분산 확인 (:7070)
+#   [3] 직접호출 - 특정 인스턴스에 X-Member-Id 실어 실제 201/409 확인
+###############################################################################
+
+@consul  = http://localhost:8500
+@gateway = http://localhost:7070
+
+# ── 직접 호출용 인스턴스 호스트 포트 ──────────────────────────────────────
+# 동적 포트라 스택을 재기동하면 값이 바뀝니다. 아래로 다시 확인하세요:
+#   docker compose port --index 1 enrollment-service 9082
+#   docker compose port --index 2 enrollment-service 9082
+#   docker compose port --index 3 enrollment-service 9082
+# 또는:  docker compose ps enrollment-service   (PORTS 칸)
+@inst1 = http://localhost:60755
+@inst2 = http://localhost:55538
+@inst3 = http://localhost:59542
+
+
+###############################################################################
+# [1] Consul — 등록/헬스 확인
+###############################################################################
+
+### 1-1. enrollment-service 인스턴스 목록 (3개, 각기 다른 ServiceAddress 확인)
+GET {{consul}}/v1/catalog/service/enrollment-service
+
+### 1-2. 헬시(passing)한 인스턴스만 조회 → 3개면 정상
+GET {{consul}}/v1/health/service/enrollment-service?passing=true
+
+
+###############################################################################
+# [2] Gateway 경유 실제 흐름: 회원가입 → (로그인) → 수강신청
+#     → 인스턴스가 라운드로빈으로 바뀌는지 확인
+#
+#  gateway는 세션에 memberId가 있으면 X-Member-Id를 자동으로 실어준다.
+#  그래서 회원가입(=자동 세션 생성) 후 수강신청하면 실제 201이 나오고 LB도 탄다.
+#  IntelliJ HTTP Client는 세션 쿠키를 자동 저장/재전송하므로 아래를 위→아래
+#  순서로 실행하면 로그인 상태가 유지된다.
+#
+#  ▶ 인스턴스가 바뀌는 것 확인하는 법 (수강신청 응답 본문엔 인스턴스 정보가 없으므로 로그로 본다):
+#     다른 터미널에서 아래를 켜두고 2-3~2-5를 연달아 실행:
+#        docker compose logs -f enrollment-service
+#     처리 로그("수강신청 요청 - memberId=...")를 찍는 컨테이너가
+#     -1 → -2 → -3 순으로 도는 게 보이면 라운드로빈 성공.
+#
+#  ※ 재실행 시: 2-1 회원가입은 loginId 중복이면 실패한다. 그때는 2-1을 건너뛰고
+#    2-2 로그인으로 세션만 만들면 된다. (또는 loginId/nickname 값을 바꾼다)
+###############################################################################
+
+### 2-1. 회원가입 (최초 1회) — 성공 시 gateway 세션 자동 생성
+POST {{gateway}}/members
+Content-Type: application/json
+
+{
+  "loginId": "lbtester1",
+  "password": "password1234",
+  "nickname": "LB테스터"
+}
+
+### 2-2. 로그인 (이미 가입돼 있을 때 세션 다시 만들기)
+POST {{gateway}}/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "lbtester1",
+  "password": "password1234"
+}
+
+### 2-3. 수강신청 - 강의 1 (React)  → 201 예상. 로그에서 처리 인스턴스 확인
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 1
+}
+
+### 2-4. 수강신청 - 강의 2 (알고리즘)  → 201 예상. 로그에서 "다음 인스턴스"인지 확인
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 2
+}
+
+### 2-5. 수강신청 - 강의 1 재신청  → 409(중복)지만 요청은 "또 다른 인스턴스"가 처리
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 1
+}
+
+### 2-6. 로그아웃 (세션 정리, 선택)
+POST {{gateway}}/auth/logout
+
+
+###############################################################################
+# [3] 인스턴스 직접 호출 — 실제 201/409 확인 (k6와 동일 방식)
+#
+#  X-Member-Id를 직접 실어 보내면 enrollment-service가 정상 처리합니다.
+#  같은 회원+강의는 첫 요청 201(신규), 이후 409(중복)입니다.
+#  회원 id를 바꿔가며 각 인스턴스가 독립적으로 처리하는지 확인하세요.
+###############################################################################
+
+### 3-1. 인스턴스 #1 직접 호출 (member 1000)
+POST {{inst1}}/enrollments
+Content-Type: application/json
+X-Member-Id: 1000
+
+{
+  "lectureId": 1
+}
+
+### 3-2. 인스턴스 #2 직접 호출 (member 1001)
+POST {{inst2}}/enrollments
+Content-Type: application/json
+X-Member-Id: 1001
+
+{
+  "lectureId": 1
+}
+
+### 3-3. 인스턴스 #3 직접 호출 (member 1002)
+POST {{inst3}}/enrollments
+Content-Type: application/json
+X-Member-Id: 1002
+
+{
+  "lectureId": 1
+}
+
+### 3-4. 같은 회원 재신청 → 409(중복) 확인 (3-1 다시 실행해도 됨)
+POST {{inst1}}/enrollments
+Content-Type: application/json
+X-Member-Id: 1000
+
+{
+  "lectureId": 1
+}
+
+### 3-5. 인스턴스 헬스 직접 확인 (Consul 헬스체크가 보는 그 엔드포인트)
+GET {{inst1}}/actuator/health

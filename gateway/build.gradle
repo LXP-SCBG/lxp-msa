@@ -30,12 +30,12 @@ dependencies {
     //  구 'spring-cloud-starter-gateway' → 'spring-cloud-starter-gateway-server-webflux'.
     //  이 스타터가 WebFlux·Netty를 끌어오므로 spring-boot-starter-web(서블릿)은 절대 넣지 않는다.
     implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webflux'
-    // consul-discovery: Gateway 자신을 Consul에 등록하고, 'user-svc' 같은 이름을 인스턴스 목록으로 푼다.
+    // consul-discovery: Consul에서 'enrollment-service' 같은 이름을 인스턴스 목록으로 푼다.
     //  (Gateway가 어디로 보낼지 정하려면 먼저 그 이름의 실제 위치를 알아야 한다.)
-//    implementation 'org.springframework.cloud:spring-cloud-starter-consul-discovery'
-    // [핵심] loadbalancer: 라우트의 'lb://user-svc'를 디스커버리가 준 인스턴스 목록에서 하나
+    implementation 'org.springframework.cloud:spring-cloud-starter-consul-discovery'
+    // [핵심] loadbalancer: 라우트의 'lb://enrollment-service'를 디스커버리가 준 인스턴스 목록에서 하나
     //  골라(라운드로빈) 호출하게 만든다. 이게 없으면 lb:// 스킴 자체를 풀지 못해 라우팅이 실패한다.
-//    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
+    implementation 'org.springframework.cloud:spring-cloud-starter-loadbalancer'
     // actuator: /actuator/health 헬스 엔드포인트(Consul 헬스체크 대상).
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
 

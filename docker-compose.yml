@@ -33,6 +33,26 @@ services:
       retries: 10
 
   # ---------------------------------------------------------------
+  # Consul: 서비스 디스커버리(레지스트리). enrollment-service 인스턴스들이
+  # 여기에 자기 주소를 등록하고, gateway가 lb://enrollment-service를 풀 때 이 목록을 조회한다.
+  # dev 모드 = 단일 노드 인메모리(비영속). 개발/부하테스트용으로 충분하다.
+  #   UI/API:  http://localhost:8500
+  # ---------------------------------------------------------------
+  consul:
+    image: hashicorp/consul:1.20
+    command: agent -dev -client=0.0.0.0 -ui
+    ports:
+      - "8500:8500"      # HTTP API + 웹 UI
+    networks:
+      - lxp-net
+    healthcheck:
+      # 리더가 선출돼야(=클러스터 준비 완료) 등록을 받는다. 이 시점부터 depends_on 통과.
+      test: ["CMD", "consul", "info"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------
   # 백엔드 서비스들. datasource URL은 application.yml에 localhost로 박혀 있어
   # SPRING_DATASOURCE_URL 환경변수로 mysql 컨테이너 주소를 덮어쓴다.
   # ---------------------------------------------------------------
@@ -65,16 +85,25 @@ services:
   enrollment-service:
     build: ./enrollment-service
     ports:
-      - "9082:9082"
+      # 호스트 포트는 고정하지 않는다(스케일 시 충돌 방지). compose가 각 인스턴스에
+      # 빈 호스트 포트를 임의 배정한다. 실제 포트는 아래로 확인:
+      #   docker compose port enrollment-service 9082   (인스턴스별로 --index 1/2/3)
+      # 트래픽은 gateway(lb://enrollment-service) + Consul 디스커버리로 라우팅된다.
+      - "9082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
       MEMBER_API_URI: http://member-service:9080
       LECTURE_API_URI: http://lecture-service:9081
+      CONSUL_HOST: consul            # application.yml의 ${CONSUL_HOST}를 consul 컨테이너로
     networks:
       - lxp-net
     depends_on:
       mysql:
         condition: service_healthy
+      consul:
+        condition: service_healthy   # Consul 리더 선출(등록 준비 완료) 후 시작
+    deploy:
+      replicas: 3                    # enrollment-service 인스턴스 3개
 
   goal-service:
     build: ./goal-service
@@ -100,8 +129,14 @@ services:
     environment:
       MEMBER_URL: http://member-service:9080
       LECTURE_URL: http://lecture-service:9081
-      ENROLLMENT_URL: http://enrollment-service:9082
       GOAL_URL: http://goal-service:9083
+      # enrollment는 lb://enrollment-service로 Consul에서 찾으므로 ENROLLMENT_URL 대신 CONSUL_HOST 주입
+      CONSUL_HOST: consul
+      # 로드밸런서가 고른 실제 인스턴스 URL(IP:9082)을 gateway 로그에 남긴다.
+      # ReactiveLoadBalancerClientFilter가 TRACE에서 "url chosen: http://<ip>:9082/..."를 찍는다.
+      # (env로는 대소문자 섞인 클래스명 로거를 못 잡으므로 소문자 패키지 레벨로 지정)
+      # → 어느 enrollment-service로 라우팅됐는지 gateway 로그만으로 확인 가능.
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY_FILTER: TRACE
     networks:
       - lxp-net
     depends_on:
@@ -109,6 +144,7 @@ services:
       - lecture-service
       - enrollment-service
       - goal-service
+      - consul
 
   # ---------------------------------------------------------------
   # 프론트(Next.js standalone). API_BASE_URL은 브라우저에서 접근하는 주소라

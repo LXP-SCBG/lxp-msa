@@ -16,6 +16,12 @@ java {
 
 repositories {
     mavenCentral()
+    dependencyManagement {
+        imports {
+            // gateway와 동일한 Spring Cloud 트레인. consul-discovery 버전을 이 BOM이 맞춰준다.
+            mavenBom 'org.springframework.cloud:spring-cloud-dependencies:2025.1.2'
+        }
+    }
 }
 
 dependencies {
@@ -30,6 +36,10 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // consul-discovery: 이 서비스를 Consul에 등록하고, 인스턴스 목록/헬스를 관리하게 한다.
+    //  actuator의 /actuator/health를 Consul 헬스체크 대상으로 재사용한다.
+    implementation 'org.springframework.cloud:spring-cloud-starter-consul-discovery'
 }
 
 tasks.named('test') {
