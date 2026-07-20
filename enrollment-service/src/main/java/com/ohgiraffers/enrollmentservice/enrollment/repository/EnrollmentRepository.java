@@ -9,6 +9,9 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     /** 중복 수강 신청 여부 확인 */
     boolean existsByMemberIdAndLectureId(Long memberId, Long lectureId);
 
+    /** 강의별 현재 수강 인원 조회 */
+    long countByLectureId(Long lectureId);
+
     /** 본인의 수강 목록을 신청일 최신순으로 조회 */
     List<Enrollment> findAllByMemberIdOrderByEnrolledAtDesc(Long memberId);
 }
