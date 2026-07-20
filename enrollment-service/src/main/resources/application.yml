@@ -1,6 +1,17 @@
 spring:
   application:
-    name: enrollment-service
+    name: enrollment-service          # Consul에 등록될 서비스 이름 (gateway의 lb://<이 이름>과 일치)
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}  # 도커에선 env로 consul 컨테이너 주입, 로컬 실행은 localhost
+      port: 8500
+      discovery:
+        prefer-ip-address: true       # 게이트웨이가 컨테이너 IP로 직접 접근하도록(도커 네트워크)
+        # 인스턴스 3개가 모두 같은 포트(9082)라 유니크 ID가 필수. 기본값(name-port)이면
+        # 3개가 서로 덮어써 Consul에 1개만 남는다. random.value로 인스턴스별로 다르게 만든다.
+        instance-id: ${spring.application.name}-${random.value}
+        health-check-path: /actuator/health   # actuator health를 Consul 헬스체크 대상으로
+        health-check-interval: 10s
   datasource:
     url: jdbc:mysql://localhost:3306/LXP
     username: sohee

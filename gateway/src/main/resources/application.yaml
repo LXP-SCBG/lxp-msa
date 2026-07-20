@@ -2,9 +2,14 @@ spring:
   application:
     name: gateway
 
-  # consul 블록 삭제: 디스커버리 없이 고정 주소로 라우팅한다. Consul 도입 시 다시 추가.
-
   cloud:
+    # Consul 조회 전용: enrollment-service 인스턴스 목록을 여기서 받아 lb://로 라우팅한다.
+    consul:
+      host: ${CONSUL_HOST:localhost}   # 도커에선 env로 consul 컨테이너 주입
+      port: 8500
+      discovery:
+        register: false                # 게이트웨이 자신은 등록 안 함(enrollment LB만 목적, 조회만)
+
     # Spring Cloud Gateway 5.x(Boot 4 트레인)부터 라우트 설정 prefix가 서버 종류별로 갈라졌다.
     # WebFlux 서버는 spring.cloud.gateway.server.webflux.routes 아래에 적는다(구 flat 키는 바인딩 안 됨).
     gateway:
@@ -22,7 +27,7 @@ spring:
               predicates:
                 - Path=/lectures/**
             - id: enrollment-service
-              uri: ${ENROLLMENT_URL:http://localhost:9082}
+              uri: lb://enrollment-service   # Consul이 준 인스턴스 목록에서 라운드로빈으로 호출
               predicates:
                 - Path=/enrollments/**
             - id: goal-service
