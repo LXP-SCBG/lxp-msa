@@ -7,7 +7,8 @@
 -- Member (회원)
 --   member_id 1~3 : 강사
 --   member_id 4~7 : 수강생 (4번은 탈퇴 회원)
---   password_hash 는 BCrypt 형식 예시 (평문 'password1234')
+--   password_hash 는 대부분 placeholder(로그인 불가). 실제 로그인 가능한 계정은
+--   member 5('test') 뿐이며 평문은 'test1234' 다.
 -- ------------------------------------------------------------
 INSERT INTO members (member_id, login_id, password_hash, nickname, status, created_at, deleted_at) VALUES
                                                                                                       (1, 'instructor_kim',  '$2a$10$abcdefghijklmnopqrstuv1234567890ABCDEFGHIJKLMNOPq', '김강사',   'ACTIVE',  '2026-01-02 09:00:00', NULL),
@@ -130,6 +131,9 @@ INSERT INTO review_likes (review_like_id, review_id, member_id, created_at) VALU
 -- 부하 테스트용 대량 회원 (k6 enrollment-test.js 전용)
 --   member_id 1000~12999 : 12,000명, 전원 ACTIVE (활성 회원 검증 통과용)
 --   login_id 'loadtest_1000'~'loadtest_12999' 로 UNIQUE 보장, 기존 1~7과 미충돌.
+--   password_hash 는 member 5(test)와 동일한 실제 BCrypt 해시(평문 'test1234').
+--   게이트웨이를 거치는 부하 테스트는 VU마다 이 계정으로 로그인해 세션을 얻어야
+--   MemberIdRelayFilter 가 X-Member-Id 를 실어 주므로, 로그인 가능한 해시가 필수다.
 --   k6 는 요청마다 회원을 유니크하게 매핑해 "몰림" 트래픽을 만들고,
 --   lecture 1(정원 100)에 대해 100건만 201 성공 / 나머지 409(정원 초과)가 되는지
 --   = 오버셀 없이 정원이 지켜지는지(정합성) 검증한다.
@@ -146,7 +150,7 @@ WITH RECURSIVE seq (n) AS (
 SELECT
     n,
     CONCAT('loadtest_', n),
-    '$2a$10$abcdefghijklmnopqrstuv1234567890ABCDEFGHIJKLMNOPq',
+    '$2a$10$1nBMyvTQfCPRBBmpPu2S7.0E.9CqDQyHXFkqi6TRHsmO6Q6cu2iWC',
     CONCAT('부하테스터', n),
     'ACTIVE',
     '2026-06-01 09:00:00'
