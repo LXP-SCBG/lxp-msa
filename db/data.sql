@@ -24,9 +24,12 @@ INSERT INTO members (member_id, login_id, password_hash, nickname, status, creat
 --   lecture_id 4   : PRIVATE (노출 제외)
 --   lecture_id 5   : DELETED (노출 제외)
 --   lecture_id 3   : max_enrollment 1 (이미 정원 마감 — 정원 초과 검증용)
+--   lecture_id 1   : max_enrollment 1000 (k6 부하 테스트 대상 "선착순 인기 강의").
+--                    스파이크가 몰려도 정확히 1000건만 201로 성공하고 나머지는
+--                    409(정원 초과)로 막혀야 한다 → 비관적 락 정합성(오버셀 0) 검증용.
 -- ------------------------------------------------------------
 INSERT INTO lectures (lecture_id, instructor_id, title, description, status, max_enrollment, created_at) VALUES
-                                                                                             (1, 1, 'React 핵심 개념 완전 정복',     'useState, useEffect, Custom Hook 까지 React 기초를 다집니다.', 'PUBLIC',  30, '2026-02-01 10:00:00'),
+                                                                                             (1, 1, 'React 핵심 개념 완전 정복',     'useState, useEffect, Custom Hook 까지 React 기초를 다집니다.', 'PUBLIC',  1000, '2026-02-01 10:00:00'),
                                                                                              (2, 1, '알고리즘 코딩테스트 입문',       'DP, 그래프, 그리디 기초 문제 풀이로 코테를 준비합니다.',       'PUBLIC',  20, '2026-02-05 10:00:00'),
                                                                                              (3, 2, 'Spring Boot REST API 설계',      'JPA 와 Spring Security 로 REST API 를 설계합니다.',           'PUBLIC',  1,  '2026-02-08 10:00:00'),
                                                                                              (4, 2, '비공개 베타 강의',               '아직 공개되지 않은 강의입니다.',                               'PRIVATE', 10, '2026-02-09 10:00:00'),
@@ -122,3 +125,29 @@ INSERT INTO review_likes (review_like_id, review_id, member_id, created_at) VALU
                                                                                 (1, 1, 6, '2026-03-15 10:00:00'),
                                                                                 (2, 1, 7, '2026-03-15 11:00:00'),
                                                                                 (3, 2, 5, '2026-03-16 10:00:00');
+
+-- ============================================================
+-- 부하 테스트용 대량 회원 (k6 enrollment-test.js 전용)
+--   member_id 1000~12999 : 12,000명, 전원 ACTIVE (활성 회원 검증 통과용)
+--   login_id 'loadtest_1000'~'loadtest_12999' 로 UNIQUE 보장, 기존 1~7과 미충돌.
+--   k6 는 요청마다 회원을 유니크하게 매핑해 "몰림" 트래픽을 만들고,
+--   lecture 1(정원 100)에 대해 100건만 201 성공 / 나머지 409(정원 초과)가 되는지
+--   = 오버셀 없이 정원이 지켜지는지(정합성) 검증한다.
+--   재귀 CTE 로 단일 INSERT (12,000행 인라인보다 파일이 간결·빠름).
+-- ------------------------------------------------------------
+SET SESSION cte_max_recursion_depth = 20000;
+
+INSERT INTO members (member_id, login_id, password_hash, nickname, status, created_at)
+WITH RECURSIVE seq (n) AS (
+    SELECT 1000
+    UNION ALL
+    SELECT n + 1 FROM seq WHERE n < 12999
+)
+SELECT
+    n,
+    CONCAT('loadtest_', n),
+    '$2a$10$abcdefghijklmnopqrstuv1234567890ABCDEFGHIJKLMNOPq',
+    CONCAT('부하테스터', n),
+    'ACTIVE',
+    '2026-06-01 09:00:00'
+FROM seq;
