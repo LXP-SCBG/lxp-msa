@@ -23,13 +23,20 @@ INSERT INTO members (member_id, login_id, password_hash, nickname, status, creat
 --   lecture_id 1~3 : PUBLIC (목록/상세 노출)
 --   lecture_id 4   : PRIVATE (노출 제외)
 --   lecture_id 5   : DELETED (노출 제외)
+--   lecture_id 3   : max_enrollment 1 (이미 정원 마감 — 정원 초과 검증용)
 -- ------------------------------------------------------------
-INSERT INTO lectures (lecture_id, instructor_id, title, description, status, created_at) VALUES
-                                                                                             (1, 1, 'React 핵심 개념 완전 정복',     'useState, useEffect, Custom Hook 까지 React 기초를 다집니다.', 'PUBLIC',  '2026-02-01 10:00:00'),
-                                                                                             (2, 1, '알고리즘 코딩테스트 입문',       'DP, 그래프, 그리디 기초 문제 풀이로 코테를 준비합니다.',       'PUBLIC',  '2026-02-05 10:00:00'),
-                                                                                             (3, 2, 'Spring Boot REST API 설계',      'JPA 와 Spring Security 로 REST API 를 설계합니다.',           'PUBLIC',  '2026-02-08 10:00:00'),
-                                                                                             (4, 2, '비공개 베타 강의',               '아직 공개되지 않은 강의입니다.',                               'PRIVATE', '2026-02-09 10:00:00'),
-                                                                                             (5, 3, '삭제된 레거시 강의',             '폐강 처리된 강의입니다.',                                       'DELETED', '2026-01-15 10:00:00');
+INSERT INTO lectures (lecture_id, instructor_id, title, description, status, max_enrollment, created_at) VALUES
+                                                                                             (1, 1, 'React 핵심 개념 완전 정복',     'useState, useEffect, Custom Hook 까지 React 기초를 다집니다.', 'PUBLIC',  30, '2026-02-01 10:00:00'),
+                                                                                             (2, 1, '알고리즘 코딩테스트 입문',       'DP, 그래프, 그리디 기초 문제 풀이로 코테를 준비합니다.',       'PUBLIC',  20, '2026-02-05 10:00:00'),
+                                                                                             (3, 2, 'Spring Boot REST API 설계',      'JPA 와 Spring Security 로 REST API 를 설계합니다.',           'PUBLIC',  1,  '2026-02-08 10:00:00'),
+                                                                                             (4, 2, '비공개 베타 강의',               '아직 공개되지 않은 강의입니다.',                               'PRIVATE', 10, '2026-02-09 10:00:00'),
+                                                                                             (5, 3, '삭제된 레거시 강의',             '폐강 처리된 강의입니다.',                                       'DELETED', 10, '2026-01-15 10:00:00');
+
+-- ------------------------------------------------------------
+-- LectureSeat (수강 정원 잠금 행)
+--   시드 강의 전체에 대해 미리 생성. 이후 생기는 강의는 수강 신청 시 upsert 됨.
+-- ------------------------------------------------------------
+INSERT INTO lecture_seats (lecture_id) VALUES (1), (2), (3), (4), (5);
 
 -- ------------------------------------------------------------
 -- Content (콘텐츠)

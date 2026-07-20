@@ -20,6 +20,7 @@ public enum ErrorCode {
 
     // Enrollment
     ENROLLMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 수강 중인 강의입니다."),
+    ENROLLMENT_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "수강 정원이 초과된 강의입니다."),
     ENROLLMENT_LIST_ACCESS_DENIED(HttpStatus.FORBIDDEN, "본인의 수강 목록만 조회할 수 있습니다."),
     ENROLLMENT_LECTURE_NOT_ACCESSIBLE(HttpStatus.NOT_FOUND, "해당 강의가 비공개 처리되었습니다."),
 

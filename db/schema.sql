@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS questions;
 DROP TABLE IF EXISTS detail_goals;
 DROP TABLE IF EXISTS learning_goals;
+DROP TABLE IF EXISTS lecture_seats;
 DROP TABLE IF EXISTS enrollments;
 DROP TABLE IF EXISTS contents;
 DROP TABLE IF EXISTS lectures;
@@ -40,16 +41,18 @@ CREATE TABLE members (
 -- Lecture (강의)
 -- ------------------------------------------------------------
 CREATE TABLE lectures (
-                          lecture_id    BIGINT       NOT NULL AUTO_INCREMENT,
-                          instructor_id BIGINT       NOT NULL,
-                          title         VARCHAR(255) NOT NULL,
-                          description   TEXT         NULL,
-                          status        VARCHAR(20)  NOT NULL,
-                          created_at    DATETIME     NOT NULL,
+                          lecture_id     BIGINT       NOT NULL AUTO_INCREMENT,
+                          instructor_id  BIGINT       NOT NULL,
+                          title          VARCHAR(255) NOT NULL,
+                          description    TEXT         NULL,
+                          status         VARCHAR(20)  NOT NULL,
+                          max_enrollment INT          NOT NULL,
+                          created_at     DATETIME     NOT NULL,
 
                           PRIMARY KEY (lecture_id),
                           CONSTRAINT fk_lecture_instructor FOREIGN KEY (instructor_id) REFERENCES members (member_id),
-                          CONSTRAINT chk_lecture_status CHECK (status IN ('PUBLIC', 'PRIVATE', 'DELETED'))
+                          CONSTRAINT chk_lecture_status CHECK (status IN ('PUBLIC', 'PRIVATE', 'DELETED')),
+                          CONSTRAINT chk_lecture_max_enrollment CHECK (max_enrollment > 0)
 );
 
 -- ------------------------------------------------------------
@@ -80,6 +83,19 @@ CREATE TABLE enrollments (
                              UNIQUE KEY uq_enrollment (member_id, lecture_id),
                              CONSTRAINT fk_enrollment_member  FOREIGN KEY (member_id)  REFERENCES members (member_id),
                              CONSTRAINT fk_enrollment_lecture FOREIGN KEY (lecture_id) REFERENCES lectures (lecture_id)
+);
+
+-- ------------------------------------------------------------
+-- LectureSeat (수강 정원 잠금용 — enrollment-service 소유)
+--   데이터가 아니라 강의별 뮤텍스 역할. 수강 신청 트랜잭션이
+--   이 행을 SELECT ... FOR UPDATE 로 잠가 정원 검증을 직렬화한다.
+--   행이 없으면 신청 시 INSERT IGNORE 로 생성된다(upsert).
+-- ------------------------------------------------------------
+CREATE TABLE lecture_seats (
+                               lecture_id BIGINT NOT NULL,
+
+                               PRIMARY KEY (lecture_id),
+                               CONSTRAINT fk_lecture_seat_lecture FOREIGN KEY (lecture_id) REFERENCES lectures (lecture_id)
 );
 
 -- ------------------------------------------------------------

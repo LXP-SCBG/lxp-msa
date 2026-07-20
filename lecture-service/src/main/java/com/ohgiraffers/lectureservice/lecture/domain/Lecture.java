@@ -32,6 +32,9 @@ public class Lecture extends BaseEntity {
 	@Column(nullable = false, length = 20)
 	private LectureStatus status;
 
+	@Column(name = "max_enrollment", nullable = false)
+	private Integer maxEnrollment;
+
 	protected Lecture() {
 	}
 
@@ -53,5 +56,9 @@ public class Lecture extends BaseEntity {
 
 	public LectureStatus getStatus() {
 		return status;
+	}
+
+	public Integer getMaxEnrollment() {
+		return maxEnrollment;
 	}
 }
