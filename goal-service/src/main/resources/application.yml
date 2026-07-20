@@ -2,7 +2,7 @@ spring:
   application:
     name: goal-service
   datasource:
-    url: jdbc:mysql://localhost:3306/LXP
+    url: jdbc:mysql://localhost:3308/LXP
     username: sohee
     password: sohee
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -16,3 +16,12 @@ spring:
 
 server:
   port: 9083
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always

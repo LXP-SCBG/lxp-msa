@@ -17,6 +17,15 @@ spring:
 server:
   port: 9080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+
 # 로그 레벨. 개발 중엔 우리 패키지만 debug로 열어 내부 API 호출 추적까지 본다.
 # 운영 전환 시 info로 올리면 debug 로그(내부 호출 추적)는 자동으로 꺼진다.
 logging:

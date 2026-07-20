@@ -1,0 +1,31 @@
+auth_enabled: false # 다중사용자 허용: false
+
+server:
+  http_listen_port: 3100 # elloy가 로그를 수집해서 lokie에게 보내줄 엔드포인트
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks # 청크데이터로 쪼개서 수집되는데 청크데이터가 저장되는 경로 설정
+      rules_directory: /loki/rules
+  replication_factor: 1 # 복제 클러스터 개수
+  ring:
+    kvstore:
+      store: inmemory # s3나 별도의 파일스토리지로 설정할 수도 있음(현재는 메모리)
+
+
+schema_config:
+  configs:
+  - from: 2020-10-15
+    store: tsdb
+    object_store: filesystem
+    schema: v13
+    index:
+      prefix: index_
+      period: 24h
+
+limits_config:
+  allow_structured_metadata: true
+  reject_old_samples: false
