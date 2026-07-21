@@ -93,7 +93,8 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/LXP
       MEMBER_API_URI: http://member-service:9080
-      LECTURE_API_URI: http://lecture-service:9081
+      # 강의 조회는 gRPC로. 이름 기반이라 컨테이너 IP가 바뀌어도 Docker DNS가 찾아준다.
+      LECTURE_GRPC_TARGET: static://lecture-service:9091
       CONSUL_HOST: consul            # application.yml의 ${CONSUL_HOST}를 consul 컨테이너로
     networks:
       - lxp-net
