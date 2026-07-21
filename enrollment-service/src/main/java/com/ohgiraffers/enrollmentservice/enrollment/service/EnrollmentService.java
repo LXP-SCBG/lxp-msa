@@ -5,6 +5,7 @@ import com.ohgiraffers.enrollmentservice.common.exception.ErrorCode;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Enrollment;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Lecture;
 import com.ohgiraffers.enrollmentservice.enrollment.domain.Member;
+import com.ohgiraffers.enrollmentservice.enrollment.grpc.GrpcLectureClient;
 import com.ohgiraffers.enrollmentservice.enrollment.repository.LectureSeatRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,20 +21,20 @@ public class EnrollmentService {
     private final LectureSeatRepository lectureSeatRepository;
     private final LectureSeatInitializer lectureSeatInitializer;
     private final EnrollmentProcessor enrollmentProcessor;
-    private final RestClient lectureRestClient;
+    private final GrpcLectureClient grpcLectureClient;
     private final RestClient memberRestClient;
 
     public EnrollmentService(
             LectureSeatRepository lectureSeatRepository,
             LectureSeatInitializer lectureSeatInitializer,
             EnrollmentProcessor enrollmentProcessor,
-            RestClient lectureRestClient,
+            GrpcLectureClient grpcLectureClient,
             RestClient memberRestClient
     ) {
         this.lectureSeatRepository = lectureSeatRepository;
         this.lectureSeatInitializer = lectureSeatInitializer;
         this.enrollmentProcessor = enrollmentProcessor;
-        this.lectureRestClient = lectureRestClient;
+        this.grpcLectureClient = grpcLectureClient;
         this.memberRestClient = memberRestClient;
     }
 
@@ -60,15 +61,9 @@ public class EnrollmentService {
 
         validateActiveMember(memberId);
 
-        Lecture lecture = lectureRestClient.get()
-                .uri("api/v1/lectures/{id}", lectureId)
-                .retrieve()
-                .body(Lecture.class);
-
-        if (lecture == null) {
-            throw new BusinessException(ErrorCode.LECTURE_NOT_FOUND);
-        }
-        log.debug("강의 조회 완료 - lectureId={}, maxEnrollment={}", lectureId, lecture.maxEnrollment());
+        // 강의 조회를 gRPC로. 없거나 비공개면 클라이언트가 BusinessException으로 변환해 던진다.
+        Lecture lecture = grpcLectureClient.getLecture(lectureId);
+        log.debug("강의 조회 완료(gRPC) - lectureId={}, maxEnrollment={}", lectureId, lecture.maxEnrollment());
 
         // 강의별 잠금 행 확보. 임계 구역과 같은 트랜잭션에서 INSERT IGNORE 하면
         // 중복 키 체크의 공유 락(S)이 트랜잭션 끝까지 남아 FOR UPDATE 와 데드락이
