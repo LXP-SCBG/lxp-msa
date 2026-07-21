@@ -1,0 +1,26 @@
+# Grafana 데이터소스 프로비저닝.
+# 컨테이너 기동 시 자동 등록되므로, UI에서 수동으로 추가할 필요가 없다.
+# (예전엔 수동 등록이라 `docker compose down -v` 후 새로 띄우면 데이터소스가 사라져
+#  Grafana에 아무것도 안 보였다. 이 파일이 있으면 항상 동일하게 재현된다.)
+apiVersion: 1
+
+# 과거에 UI로 수동 등록해 둔 중복 데이터소스를 정리한다(이름 기준).
+deleteDatasources:
+  - name: loki
+    orgId: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    # compose 네트워크 안이라 서비스명이 곧 호스트명이다.
+    url: http://prometheus:9090
+    isDefault: true
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false

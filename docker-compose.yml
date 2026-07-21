@@ -40,7 +40,10 @@ services:
   # ---------------------------------------------------------------
   consul:
     image: hashicorp/consul:1.20
-    command: agent -dev -client=0.0.0.0 -ui
+    # -dev 모드 기본 로그레벨은 DEBUG라, 디스커버리 클라이언트(gateway/enrollment)의
+    # 2초 주기 블로킹 쿼리마다 "content-type is not supported" DEBUG 경고를 쏟아 로그를 뒤덮는다.
+    # (요청 자체는 정상 처리됨 → 무해한 노이즈). info로 낮춰 스팸을 끄고 유용한 로그만 남긴다.
+    command: agent -dev -client=0.0.0.0 -ui -log-level=info
     ports:
       - "8500:8500"      # HTTP API + 웹 UI
     networks:
@@ -184,7 +187,9 @@ services:
 
   loki:
     image: grafana/loki:3.3.2
-    command: -config.file=/etc/loki/local-config.yaml
+    # command의 경로와 마운트 경로가 반드시 일치해야 커스텀 설정이 로드된다.
+    # (예전엔 command가 이미지 기본 local-config.yaml을 가리켜 이 설정이 무시됐다)
+    command: -config.file=/etc/loki/loki-config.yaml
     ports:
       - "3100:3100"
     volumes:
@@ -220,6 +225,9 @@ services:
       # 로컬 개발용 기본 계정. 운영 전환 시 반드시 변경한다.
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      # 데이터소스(Prometheus·Loki)를 기동 시 자동 등록한다.
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
     networks:
       - lxp-net
     depends_on:
