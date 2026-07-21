@@ -29,3 +29,7 @@ schema_config:
 limits_config:
   allow_structured_metadata: true
   reject_old_samples: false
+  # 기본 수집 한도(4MB/s, burst 6MB)는 부하테스트 로그량 + 파일 tail 최초 백로그에 쉽게 걸린다.
+  # (429 Too Many Requests) 로컬/부하테스트용으로 넉넉히 상향.
+  ingestion_rate_mb: 32
+  ingestion_burst_size_mb: 64
