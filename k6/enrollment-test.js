@@ -75,8 +75,11 @@ import { Rate } from 'k6/metrics';
  *  ※ loadtest 회원(loadtest_1000~)은 db/data.sql 에서 로그인 가능한 실제 BCrypt
  *    해시(평문 'test1234')로 시드되어 있어야 한다. placeholder 해시면 로그인 실패.
  *
- *  ※ 매 재실행 전 이전 신청 기록을 지워야 좌석 1000개가 다시 비고 검증이 반복된다:
- *    docker exec lxp-msa-mysql-1 mysql -usohee -psohee LXP -e "DELETE FROM enrollments;"
+ *  ※ 매 재실행 전 이전 신청 기록을 지우고 잔여석 카운터를 정원으로 되돌려야
+ *    좌석 1000개가 다시 비고 검증이 반복된다. 좌석은 이제 COUNT(*) 가 아니라
+ *    lecture_seats.remaining_seats 카운터로 관리되므로, enrollments 만 지우면
+ *    카운터가 갱신되지 않아 다음 실행에서 좌석이 없다:
+ *    docker exec lxp-msa-mysql-1 mysql -usohee -psohee LXP -e "DELETE FROM enrollments; UPDATE lecture_seats s JOIN lectures l ON s.lecture_id = l.lecture_id SET s.remaining_seats = l.max_enrollment;"
  * ────────────────────────────────────────────────────────────────────
  */
 

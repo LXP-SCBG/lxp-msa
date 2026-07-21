@@ -176,6 +176,9 @@ services:
   # ===============================================================
   prometheus:
     image: prom/prometheus:v3.1.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver      # ← k6 remote write 수신 허용
     ports:
       - "9090:9090"
     volumes:

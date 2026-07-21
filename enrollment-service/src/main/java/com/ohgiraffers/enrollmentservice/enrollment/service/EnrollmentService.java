@@ -69,7 +69,7 @@ public class EnrollmentService {
         // 중복 키 체크의 공유 락(S)이 트랜잭션 끝까지 남아 FOR UPDATE 와 데드락이
         // 나므로, 반드시 임계 구역 밖의 독립 트랜잭션에서 만들고 커밋해 둔다.
         if (!lectureSeatRepository.existsById(lectureId)) {
-            lectureSeatInitializer.createIfAbsent(lectureId);
+            lectureSeatInitializer.createIfAbsent(lectureId, lecture.maxEnrollment());
         }
 
         return enrollmentProcessor.enroll(memberId, lecture);

@@ -1,10 +1,7 @@
 package com.ohgiraffers.enrollmentservice.enrollment.repository;
 
 import com.ohgiraffers.enrollmentservice.enrollment.domain.LectureSeat;
-import jakarta.persistence.LockModeType;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,21 +9,26 @@ import org.springframework.data.repository.query.Param;
 public interface LectureSeatRepository extends JpaRepository<LectureSeat, Long> {
 
     /**
-     * 잠금 행이 없으면 생성한다(있으면 무시).
+     * 카운터 행이 없으면 잔여석 초기값(= max_enrollment)으로 생성한다(있으면 무시).
      *
      * <p>최초 신청 두 건이 동시에 들어와도 PK 충돌로 한 건만 삽입되므로 안전하다.
      */
     @Modifying
-    @Query(value = "INSERT IGNORE INTO lecture_seats (lecture_id) VALUES (:lectureId)", nativeQuery = true)
-    void insertIgnore(@Param("lectureId") Long lectureId);
+    @Query(value = "INSERT IGNORE INTO lecture_seats (lecture_id, remaining_seats) VALUES (:lectureId, :remainingSeats)", nativeQuery = true)
+    void insertIgnore(@Param("lectureId") Long lectureId, @Param("remainingSeats") int remainingSeats);
 
     /**
-     * 강의 잠금 행을 비관적 락으로 조회한다(SELECT ... FOR UPDATE).
+     * 잔여석이 남아 있을 때만 좌석을 1 차감한다(원자적 재고 감소).
      *
-     * <p>트랜잭션 커밋/롤백 시점에 락이 풀리며, 같은 강의의 수강 신청은
-     * 이 지점에서 한 줄로 직렬화된다.
+     * <p>{@code WHERE remaining_seats > 0} 가드 덕분에 아무리 많은 요청이
+     * 동시에 들어와도 잔여석은 0 미만으로 내려가지 않는다(오버셀 0). 단일 UPDATE 라
+     * SELECT ... FOR UPDATE 로 임계 구역을 잡거나 COUNT(*) 로 인원을 세지 않으므로,
+     * 신청이 쌓여도 처리 시간이 일정하게 유지된다.
+     *
+     * @return 차감된 행 수. 1 이면 좌석 확보 성공, 0 이면 정원 초과.
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM LectureSeat s WHERE s.lectureId = :lectureId")
-    Optional<LectureSeat> findWithLock(@Param("lectureId") Long lectureId);
+    @Modifying
+    @Query(value = "UPDATE lecture_seats SET remaining_seats = remaining_seats - 1 "
+            + "WHERE lecture_id = :lectureId AND remaining_seats > 0", nativeQuery = true)
+    int decrementRemainingSeats(@Param("lectureId") Long lectureId);
 }

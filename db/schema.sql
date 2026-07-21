@@ -86,16 +86,22 @@ CREATE TABLE enrollments (
 );
 
 -- ------------------------------------------------------------
--- LectureSeat (수강 정원 잠금용 — enrollment-service 소유)
---   데이터가 아니라 강의별 뮤텍스 역할. 수강 신청 트랜잭션이
---   이 행을 SELECT ... FOR UPDATE 로 잠가 정원 검증을 직렬화한다.
---   행이 없으면 신청 시 INSERT IGNORE 로 생성된다(upsert).
+-- LectureSeat (수강 정원 카운터 — enrollment-service 소유)
+--   강의별 "잔여 좌석 수"를 들고 있는 재고 행. 수강 신청은
+--   UPDATE ... SET remaining_seats = remaining_seats - 1 WHERE remaining_seats > 0
+--   단일 원자 UPDATE 로 정원 검증(잔여>0)과 좌석 확보(차감)를 동시에 수행한다.
+--   SELECT ... FOR UPDATE + COUNT(*) 조합을 없애 임계 구역을 최소화한다
+--   (COUNT 스캔 제거 → 신청이 쌓여도 처리 시간이 늘지 않는다).
+--   remaining_seats 초기값 = 강의의 max_enrollment - 기존 수강 인원.
+--   행이 없으면 신청 시 INSERT IGNORE 로 max_enrollment 값으로 생성된다(upsert).
 -- ------------------------------------------------------------
 CREATE TABLE lecture_seats (
-                               lecture_id BIGINT NOT NULL,
+                               lecture_id      BIGINT NOT NULL,
+                               remaining_seats INT    NOT NULL,
 
                                PRIMARY KEY (lecture_id),
-                               CONSTRAINT fk_lecture_seat_lecture FOREIGN KEY (lecture_id) REFERENCES lectures (lecture_id)
+                               CONSTRAINT fk_lecture_seat_lecture FOREIGN KEY (lecture_id) REFERENCES lectures (lecture_id),
+                               CONSTRAINT chk_lecture_seat_remaining CHECK (remaining_seats >= 0)
 );
 
 -- ------------------------------------------------------------

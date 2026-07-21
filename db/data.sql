@@ -37,10 +37,19 @@ INSERT INTO lectures (lecture_id, instructor_id, title, description, status, max
                                                                                              (5, 3, '삭제된 레거시 강의',             '폐강 처리된 강의입니다.',                                       'DELETED', 10, '2026-01-15 10:00:00');
 
 -- ------------------------------------------------------------
--- LectureSeat (수강 정원 잠금 행)
+-- LectureSeat (수강 정원 카운터 행)
 --   시드 강의 전체에 대해 미리 생성. 이후 생기는 강의는 수강 신청 시 upsert 됨.
+--   remaining_seats = max_enrollment - (아래에서 시드되는 기존 수강 인원).
+--     lecture 1: 1000 - 2(회원 5,6) = 998
+--     lecture 2:   20 - 1(회원 5)   =  19
+--     lecture 3:    1 - 1(회원 7)   =   0  (이미 마감)
+--     lecture 4:   10 - 0           =  10
+--     lecture 5:   10 - 0           =  10
+--   ※ k6 부하 테스트는 실행 전 enrollments 를 비우고 remaining_seats 를
+--     max_enrollment 로 되돌려야 한다(enrollment-test.js 상단 주석 참고).
 -- ------------------------------------------------------------
-INSERT INTO lecture_seats (lecture_id) VALUES (1), (2), (3), (4), (5);
+INSERT INTO lecture_seats (lecture_id, remaining_seats) VALUES
+    (1, 998), (2, 19), (3, 0), (4, 10), (5, 10);
 
 -- ------------------------------------------------------------
 -- Content (콘텐츠)
