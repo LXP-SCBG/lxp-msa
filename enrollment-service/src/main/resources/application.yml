@@ -1,6 +1,13 @@
 spring:
   application:
     name: enrollment-service          # Consul에 등록될 서비스 이름 (gateway의 lb://<이 이름>과 일치)
+  grpc:
+    client:
+      channels:                       # Spring gRPC 1.x: channels(복수) 아래에 named 채널, 주소 키는 address
+        lecture-service:              # GrpcLectureClient의 createChannel("lecture-service")와 매칭
+          # static://: 디스커버리 없이 고정 호스트:포트로 접속. IP가 아니라 이름이라 컨테이너 재시작·IP변경에 견딘다.
+          # 로컬 단독 실행은 localhost:9091, 도커는 compose에서 LECTURE_GRPC_TARGET=static://lecture-service:9091 주입.
+          address: ${LECTURE_GRPC_TARGET:static://localhost:9091}
   cloud:
     consul:
       host: ${CONSUL_HOST:localhost}  # 도커에선 env로 consul 컨테이너 주입, 로컬 실행은 localhost

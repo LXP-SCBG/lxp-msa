@@ -147,3 +147,64 @@ X-Member-Id: 1000
 
 ### 3-5. 인스턴스 헬스 직접 확인 (Consul 헬스체크가 보는 그 엔드포인트)
 GET {{inst1}}/actuator/health
+
+
+###############################################################################
+# [4] gRPC 검증 — 수강신청 시 강의 조회가 REST가 아니라 gRPC로 나가는지 확인
+#
+#  enroll 흐름: validateActiveMember(REST→member) → 강의 조회(gRPC→lecture:9091)
+#  → 정원/중복 검증 → 저장. 여기서 검증하는 건 "강의 조회 gRPC 호출"의 결과 매핑이다.
+#
+#  준비: 위 [2]의 2-1(회원가입) 또는 2-2(로그인)를 먼저 실행해 세션을 만든다.
+#       (IntelliJ HTTP Client가 세션 쿠키를 자동 재전송하므로 gateway가 X-Member-Id를 실어준다)
+#
+#  ▶ gRPC 홉을 눈으로 확인: 다른 터미널에서 아래를 켜두고 4-x를 실행하면
+#     lecture 컨테이너에 "gRPC 강의 조회 요청/완료" 로그가 찍힌다.
+#        docker compose logs -f lecture-service
+#
+#  시드 강의 상태: 1=PUBLIC(정원1000) · 3=PUBLIC(정원1,만석) · 4=PRIVATE · 5=DELETED · 99=없음
+###############################################################################
+
+### 4-1. 정상 — 공개 강의(1). 첫 신청 201, 재실행 시 409(중복)
+#        gRPC 조회 성공 → 이후 enrollment 로직 진행
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 1
+}
+
+### 4-2. 없는 강의(99) → 404 "존재하지 않는 강의입니다"
+#        서버가 gRPC NOT_FOUND → 클라이언트가 LECTURE_NOT_FOUND로 변환
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 99
+}
+
+### 4-3. 비공개 강의(4, PRIVATE) → 404 "해당 강의가 비공개 처리되었습니다"
+#        서버가 gRPC FAILED_PRECONDITION → 클라이언트가 ENROLLMENT_LECTURE_NOT_ACCESSIBLE로 변환
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 4
+}
+
+### 4-4. 삭제된 강의(5, DELETED) → 404 (PUBLIC이 아니므로 4-3과 동일 처리)
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 5
+}
+
+### 4-5. 정원 초과(3, 정원 1 · 이미 만석) → 409 "수강 정원이 초과된 강의입니다"
+#        gRPC 조회는 성공(maxEnrollment=1 수신) → enrollment 정원 검증에서 차단
+POST {{gateway}}/enrollments
+Content-Type: application/json
+
+{
+  "lectureId": 3
+}

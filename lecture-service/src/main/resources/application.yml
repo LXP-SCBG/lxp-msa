@@ -1,6 +1,9 @@
 spring:
   application:
     name: lecture-service
+  grpc:
+    server:
+      port: 9091    # gRPC 서버 포트(HTTP/2). REST(9081, HTTP/1.1)와 별개 리스너로 함께 뜬다.
   datasource:
     url: jdbc:mysql://localhost:3306/LXP
     username: sohee

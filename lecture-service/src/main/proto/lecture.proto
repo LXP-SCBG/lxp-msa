@@ -1,0 +1,26 @@
+// lecture.proto: lecture-service의 gRPC 계약(contract-first).
+// 이 한 장에서 서버(lecture)와 클라이언트(enrollment) 코드가 함께 생성되어 타입이 맞물린다.
+// 폴리레포라 enrollment-service/src/main/proto/lecture.proto 에도 "동일 내용으로 복제"한다.
+syntax = "proto3";
+
+option java_multiple_files = true;                    // 메시지마다 별도 .java 파일 생성
+option java_package = "com.ohgiraffers.lecture.grpc"; // 양쪽 서비스가 공유하는 중립 패키지명
+
+package lecture;
+
+// 수강 신청 검증용 강의 조회. unary(요청 1 → 응답 1).
+// 강의 없음/비공개 같은 오류는 응답 필드가 아니라 gRPC 상태 코드(NOT_FOUND / FAILED_PRECONDITION)로 전달한다.
+service LectureInternalService {
+  rpc GetLecture(GetLectureRequest) returns (GetLectureReply) {}
+}
+
+// 요청: 조회할 강의 id. 숫자(=1)는 값이 아니라 와이어에 실리는 "필드 번호"다.
+message GetLectureRequest {
+  int64 lecture_id = 1;
+}
+
+// 응답: enrollment가 실제 쓰는 두 필드(lectureId, maxEnrollment)만 담는다.
+message GetLectureReply {
+  int64 lecture_id = 1;
+  int32 max_enrollment = 2;
+}

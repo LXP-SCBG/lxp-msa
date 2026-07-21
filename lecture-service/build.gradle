@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.0'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'com.google.protobuf' version '0.9.4'               // [gRPC] .proto → 자바 코드(메시지 + gRPC 스텁) 생성
 }
 
 group = 'com.ohgiraffers'
@@ -14,8 +15,22 @@ java {
     }
 }
 
+ext {
+    // [gRPC] Spring Boot 4.1에서 검증된 버전 조합(교재 04장). 생성기와 런타임을 같은 버전으로 묶어 드리프트를 막는다.
+    set('springGrpcVersion', '1.0.3')     // Spring gRPC(공식). Boot 4.x는 1.x 라인.
+    set('grpcVersion', '1.77.1')          // io.grpc 런타임·codegen
+    set('protobufVersion', '4.33.4')      // protobuf-java/protoc
+}
+
 repositories {
     mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        // [gRPC] Spring gRPC 1.x BOM(슬림): spring-grpc-core만 관리. io.grpc/protobuf는 아래에서 직접 핀한다.
+        mavenBom "org.springframework.grpc:spring-grpc-dependencies:${springGrpcVersion}"
+    }
 }
 
 dependencies {
@@ -30,6 +45,31 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // [gRPC] 서버 스타터: proto로 정의한 서비스를 gRPC 엔드포인트(9091)로 노출. REST(9081)와 별도 포트로 함께 뜬다.
+    implementation "org.springframework.grpc:spring-grpc-server-spring-boot-starter:${springGrpcVersion}"
+    // [gRPC] 생성된 스텁(LectureInternalServiceGrpc)이 컴파일 때 직접 import 하는 런타임. 1.x BOM이 io.grpc를 관리 안 해 직접 핀.
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    // [gRPC] 생성 코드의 @javax.annotation.Generated 표시는 JDK 9+에서 빠짐. 소스에서만 쓰이므로 compileOnly.
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
+}
+
+// [gRPC] 빌드 때 src/main/proto의 .proto를 컴파일해 메시지 클래스 + gRPC 스텁을 build/generated 아래에 생성.
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"      // 생성기 버전 = 런타임 버전
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
 }
 
 tasks.named('test') {
