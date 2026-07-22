@@ -1,16 +1,32 @@
-FROM eclipse-temurin:17-jdk AS build
+FROM gradle:8.14-jdk17 AS build
 
 WORKDIR /workspace
 
-COPY . .
+COPY build.gradle settings.gradle ./
 
-RUN ./gradlew bootJar -x test --no-daemon
+RUN gradle dependencies --no-daemon
+
+COPY src ./src
+
+RUN gradle bootJar -x test --no-daemon
+
+
+FROM eclipse-temurin:17-jre AS extract
+
+WORKDIR /workspace
+
+COPY --from=build /workspace/build/libs/*.jar application.jar
+
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+
 
 FROM eclipse-temurin:17-jre
 
-WORKDIR /app
+WORKDIR /application
 
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=extract /workspace/extracted/dependencies/ ./
+COPY --from=extract /workspace/extracted/spring-boot-loader/ ./
+COPY --from=extract /workspace/extracted/snapshot-dependencies/ ./
+COPY --from=extract /workspace/extracted/application/ ./
 
-
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-jar", "application.jar"]
